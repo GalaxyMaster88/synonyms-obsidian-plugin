@@ -1,6 +1,7 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf} from 'obsidian';
 
 // Remember to rename these classes and interfaces!
+const VIEW_TYPE_EXAMPLE = "example-view";
 
 interface MyPluginSettings {
 	mySetting: string;
@@ -15,6 +16,23 @@ export default class MyPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+        this.registerView(
+            VIEW_TYPE_EXAMPLE,
+            (leaf) => new ExampleView(leaf)
+        );
+
+		// This creates an icon in the left ribbon.
+		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
+			// Called when the user clicks the icon.
+			new Notice('This is a notice!');
+		});
+		// Perform additional things with the ribbon
+		ribbonIconEl.addClass('my-plugin-ribbon-class');
+
+		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
+		const statusBarItemEl = this.addStatusBarItem();
+		statusBarItemEl.setText('Status Bar Text');
+
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
 			id: 'open-sample-modal-simple',
@@ -44,13 +62,15 @@ export default class MyPlugin extends Plugin {
 			editorCallback: (editor: Editor) => {
 				const selection = editor.getSelection();
 				getSynonyms(selection).then(synonymsList => {
-					console.log(synonymsList);
-					for (const test of synonymsList) {
-						console.log(test);
-						new Notice(test);
-					}
+					this.activateView(selection, synonymsList);
 				});
 			},
+			hotkeys: [
+                {
+                    modifiers: ['Mod', 'Shift'], // 'Mod' is cross-platform for Cmd (Mac) or Ctrl (Windows/Linux)
+                    key: 'Y'
+                }
+            ],
 		});
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
 		this.addCommand({
@@ -69,7 +89,7 @@ export default class MyPlugin extends Plugin {
 					// This command will only show up in Command Palette when the check function returns true
 					return true;
 				}
-			}
+			},
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -86,7 +106,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	onunload() {
-
+        this.app.workspace.detachLeavesOfType(VIEW_TYPE_EXAMPLE);
 	}
 
 	async loadSettings() {
@@ -96,6 +116,29 @@ export default class MyPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+	async activateView(word: string, synonyms: string[]) {
+        const { workspace } = this.app;
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE).first();
+
+		if (!leaf) {
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (rightLeaf) { // Ensure rightLeaf is not null
+				leaf = (await rightLeaf.setViewState({
+					type: VIEW_TYPE_EXAMPLE,
+					active: true,
+				})) as unknown as WorkspaceLeaf; // Type assertion
+			} else {
+				// Fallback if no right leaf is available
+				return;
+			}
+		}
+	
+		if (leaf) {
+			const view = leaf.view as ExampleView;
+            view.updateContent(word || '', synonyms || []);
+            workspace.revealLeaf(leaf);
+		}
+    }
 }
 
 class SampleModal extends Modal {
@@ -126,6 +169,7 @@ class SampleSettingTab extends PluginSettingTab {
 		const {containerEl} = this;
 
 		containerEl.empty();
+
 		new Setting(containerEl)
 			.setName('Setting #1')
 			.setDesc('It\'s a secret')
@@ -137,4 +181,52 @@ class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 	}
+}
+class ExampleView extends ItemView {
+    private header: string = '';
+    private synonymsList: string[] = [];
+
+    constructor(leaf: WorkspaceLeaf) {
+        super(leaf);
+    }
+
+    getViewType(): string {
+        return VIEW_TYPE_EXAMPLE;
+    }
+
+    getDisplayText(): string {
+        return "Synonyms View";
+    }
+
+    async onOpen() {
+        this.updateViewContent();
+    }
+
+    updateContent(word: string, synonyms: string[]) {
+        this.header = word;
+        this.synonymsList = synonyms;
+        this.updateViewContent();
+    }
+
+    private updateViewContent() {
+        const container = this.containerEl.children[1];
+        container.empty();
+
+        if (this.header) {
+            container.createEl("h4", { text: `Synonyms for: ${this.header}` });
+        }
+
+        if (this.synonymsList.length > 0) {
+            const synonymsList = container.createEl("ul");
+            this.synonymsList.forEach(synonym => {
+                synonymsList.createEl("li", { text: synonym });
+            });
+        } else {
+            container.createEl("p", { text: "No synonyms found." });
+        }
+    }
+
+    async onClose() {
+        // Cleanup, if needed
+    }
 }
