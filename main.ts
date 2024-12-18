@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -15,19 +15,6 @@ export default class MyPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
 			id: 'open-sample-modal-simple',
@@ -44,6 +31,26 @@ export default class MyPlugin extends Plugin {
 				console.log(editor.getSelection());
 				editor.replaceSelection('Sample Editor Command');
 			}
+		});
+		async function getSynonyms(word: string) {
+			const response = await fetch(`https://api.datamuse.com/words?rel_syn=${word}`);
+			const data = await response.json();
+			return data.map((item: any) => item.word);
+		}
+		  
+		this.addCommand({
+			id: 'Get-Synonyms',
+			name: 'Get Synonyms',
+			editorCallback: (editor: Editor) => {
+				const selection = editor.getSelection();
+				getSynonyms(selection).then(synonymsList => {
+					console.log(synonymsList);
+					for (const test of synonymsList) {
+						console.log(test);
+						new Notice(test);
+					}
+				});
+			},
 		});
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
 		this.addCommand({
@@ -119,7 +126,6 @@ class SampleSettingTab extends PluginSettingTab {
 		const {containerEl} = this;
 
 		containerEl.empty();
-
 		new Setting(containerEl)
 			.setName('Setting #1')
 			.setDesc('It\'s a secret')
