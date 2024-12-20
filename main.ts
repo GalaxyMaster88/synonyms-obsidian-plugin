@@ -232,6 +232,7 @@ class ExampleView extends ItemView {
                 );
             }
         }
+		container.createEl("h5", { text: `Synonyms: ` });
         if (this.synonymsList.length > 0) {
 			const synonymsList = container.createEl("ul");
 			synonymsList.classList.add("SynonymList"); // Add class to the <ul>
