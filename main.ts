@@ -120,22 +120,6 @@ export default class MyPlugin extends Plugin {
     }
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
 class SampleSettingTab extends PluginSettingTab {
 	plugin: MyPlugin;
 
@@ -249,10 +233,14 @@ class ExampleView extends ItemView {
             }
         }
         if (this.synonymsList.length > 0) {
-            const synonymsList = container.createEl("ul");
-            this.synonymsList.forEach(synonym => {
-                synonymsList.createEl("li", { text: synonym });
-            });
+			const synonymsList = container.createEl("ul");
+			synonymsList.classList.add("SynonymList"); // Add class to the <ul>
+			
+			this.synonymsList.forEach(synonym => {
+				const listItem = synonymsList.createEl("li", { text: capitalizeFirstLetter(synonym) });
+				// listItem.classList.add("my-li-class"); // Add class to each <li>
+			});
+			
         } else {
             container.createEl("p", { text: "No synonyms found." });
         }

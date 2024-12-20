@@ -52,3 +52,18 @@
 .definition-container summary > div {
     display: inline-block;
 }
+
+.SynonymList{
+    display:flex;
+    padding: 0px;
+    flex-wrap: wrap;
+    gap: 5px; 
+}
+
+.SynonymList > *{
+    margin: 0 2px;
+    list-style-type: none;
+    padding: 3px 12px;
+    background-color: #3c3d3f;
+    border-radius: 20px;
+}
