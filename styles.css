@@ -6,7 +6,7 @@
     align-items: center;
     /* gap: 5px; */
 }
-.definition-container h3, .definition-list ol {
+.definition-container h5, .definition-list ol {
     margin-top: 0px;
     margin-bottom: 0px;
 }
