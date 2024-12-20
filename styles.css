@@ -1,8 +1,54 @@
-/*
+.definition-container summary {
+    cursor: pointer;
+    margin-bottom: 4px;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    /* gap: 5px; */
+}
+.definition-container h3, .definition-list ol {
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+/* Remove BOTH default disclosure triangles */
+.definition-container summary::-webkit-details-marker,
+.definition-container summary::marker {
+    display: none;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.definition-container summary::before {
+    content: "▶";
+    font-size: 0.6em;
+    display: inline-block;
+    transform: rotate(0);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    margin: 0px 7.5px;
+}
 
-If your plugin does not need CSS, delete this file.
+.definition-container details[open] > summary::before {
+    transform: rotate(90deg);
+}
 
-*/
+.definition-container .definition-list {
+    margin-left: 20px;
+    margin-top: 4px;
+}
+
+.definition-container .copy-code-button {
+    display: none;
+}
+
+.definition-container pre {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+}
+
+.definition-container code {
+    background: transparent;
+}
+
+.definition-container summary > div {
+    display: inline-block;
+}

@@ -1,8 +1,49 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf} from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, MarkdownRenderer } from 'obsidian';
+
+async function fetchWithRetry(url: string): Promise<string> {
+	const response = await fetch(url, {});
+	return await response .text();
+}
+async function scrapeWebpage(url: string) {
+	const html = await fetchWithRetry(url);
+	// console.log(html);
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(html, 'text/html');
+	const textContents: string[] = [];
+
+	// Get all elements with class 'engthes'
+	const engthesElements = doc.getElementsByClassName('engthes');
+
+	Array.from(engthesElements).forEach(element => {
+        // Get immediate children of engthes element
+        const children = element.children;
+        Array.from(children).forEach(child => {
+			const children2 = child.children;
+			Array.from(children2).forEach(child => {
+				if (!child.getAttribute('style')?.includes('text-decoration')) { // theres probably a better way to get this element
+					// Get all direct span elements
+					// console.log(child);
+					const spans = child.querySelectorAll(':scope > span');
+					// console.log(spans)
+					spans.forEach(span => {
+						const text = span.textContent?.trim();
+						if (text && text !== '...') {
+							textContents.push(text);
+						}
+					});
+				}
+			});
+        });
+    });
+
+	// Remove duplicates and filter out empty strings
+	return [...new Set(textContents)].filter(Boolean);
+};
+
 
 // Remember to rename these classes and interfaces!
 const VIEW_TYPE_EXAMPLE = "example-view";
-
+ 
 interface MyPluginSettings {
 	mySetting: string;
 }
@@ -50,24 +91,17 @@ export default class MyPlugin extends Plugin {
 				editor.replaceSelection('Sample Editor Command');
 			}
 		});
-		async function getSynonyms(word: string) {
-			const response = await fetch(`https://api.datamuse.com/words?rel_syn=${word}`);
-			const data = await response.json();
-			return data.map((item: any) => item.word);
-		}
-		  
+
 		this.addCommand({
 			id: 'Get-Synonyms',
 			name: 'Get Synonyms',
-			editorCallback: (editor: Editor) => {
+			editorCallback: async (editor: Editor) => {
 				const selection = editor.getSelection();
-				getSynonyms(selection).then(synonymsList => {
-					this.activateView(selection, synonymsList);
-				});
+				this.activateView(selection);
 			},
 			hotkeys: [
                 {
-                    modifiers: ['Mod', 'Shift'], // 'Mod' is cross-platform for Cmd (Mac) or Ctrl (Windows/Linux)
+                    modifiers: ['Mod', 'Shift'],
                     key: 'Y'
                 }
             ],
@@ -116,26 +150,30 @@ export default class MyPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-	async activateView(word: string, synonyms: string[]) {
+	async activateView(word: string) {
         const { workspace } = this.app;
         let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE).first();
+		console.log('START');
 
 		if (!leaf) {
 			const rightLeaf = workspace.getRightLeaf(false);
 			if (rightLeaf) { // Ensure rightLeaf is not null
-				leaf = (await rightLeaf.setViewState({
+				await rightLeaf.setViewState({
 					type: VIEW_TYPE_EXAMPLE,
 					active: true,
-				})) as unknown as WorkspaceLeaf; // Type assertion
+				});
+				// Ensure `leaf` is updated after setting the view state
+				leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE).first();
 			} else {
 				// Fallback if no right leaf is available
+				console.log('No right leaf; Fallback');
 				return;
 			}
 		}
-	
+
 		if (leaf) {
 			const view = leaf.view as ExampleView;
-            view.updateContent(word || '', synonyms || []);
+            view.updateContent(word || '');
             workspace.revealLeaf(leaf);
 		}
     }
@@ -185,6 +223,7 @@ class SampleSettingTab extends PluginSettingTab {
 class ExampleView extends ItemView {
     private header: string = '';
     private synonymsList: string[] = [];
+	private definition: any = '';
 
     constructor(leaf: WorkspaceLeaf) {
         super(leaf);
@@ -201,21 +240,73 @@ class ExampleView extends ItemView {
     async onOpen() {
         this.updateViewContent();
     }
+	async updateContent(word: string) {
+		this.header = word;
+	
+		// Run both promises concurrently
+		const [synonymsList, definition] = await Promise.all([
+			this.getSynonyms(word),
+			this.getWordDefinition(word),
+		]);
+	
+		// Update properties with resolved values
+		this.synonymsList = synonymsList;
+		this.definition = definition;
+	
+		// Update the view content after both are done
+		this.updateViewContent();
+	}
+	
 
-    updateContent(word: string, synonyms: string[]) {
-        this.header = word;
-        this.synonymsList = synonyms;
-        this.updateViewContent();
-    }
-
-    private updateViewContent() {
+    private async updateViewContent() {
         const container = this.containerEl.children[1];
         container.empty();
 
         if (this.header) {
             container.createEl("h4", { text: `Synonyms for: ${this.header}` });
         }
-
+		if (this.definition) {
+            const definitionContainer = container.createDiv({
+                cls: 'definition-container'
+            });
+            
+            
+            for (const meaning of this.definition) {
+                const details = definitionContainer.createEl('details', {
+                    cls: 'definition-part'
+                });
+                details.setAttribute('open', '');
+                
+                const summary = details.createEl('summary');
+                
+                // Create a separate div for the part of speech that will be rendered as markdown
+                const partOfSpeechDiv = summary.createDiv();
+                await MarkdownRenderer.render(
+                    this.app,
+                    `### ${meaning.partOfSpeech}`,
+                    partOfSpeechDiv,
+                    '',
+                    this
+                );
+                
+                // Create a div for the definitions
+                const defsDiv = details.createDiv({
+                    cls: 'definition-list'
+                });
+                
+                const defsMarkdown = meaning.definitions
+                    .map((def: string, index: number) => `${index + 1}. ${def}`)
+                    .join('\n');
+                
+                await MarkdownRenderer.render(
+                    this.app,
+                    defsMarkdown,
+                    defsDiv,
+                    '',
+                    this
+                );
+            }
+        }
         if (this.synonymsList.length > 0) {
             const synonymsList = container.createEl("ul");
             this.synonymsList.forEach(synonym => {
@@ -229,4 +320,36 @@ class ExampleView extends ItemView {
     async onClose() {
         // Cleanup, if needed
     }
+	async getSynonyms(word: string) {
+		let data: string[] = [];
+		data = await scrapeWebpage(`https://www.wordreference.com/synonyms/${word}`);
+		if (data.length == 0){
+			const response = await fetch(`https://api.datamuse.com/words?rel_syn=${word}`);
+			data = await response.json();
+			return (data as any).map((item: any) => item.word);
+		}
+		return data;
+	}
+	async getWordDefinition(word: string) {
+		try {
+			const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+			const data = await response.json();
+			
+			if ((data as any).length > 0) {
+				// Extract meanings
+				const meanings = (data as any)[0].meanings.map((meaning: any) => {
+					return {
+						partOfSpeech: meaning.partOfSpeech,
+						definitions: meaning.definitions.map((def: any) => def.definition)
+					};
+				});
+				
+				return meanings;
+			}
+			return null;
+		} catch (error) {
+			console.error('Error fetching definition:', error);
+			return null;
+		}
+	}
 }
