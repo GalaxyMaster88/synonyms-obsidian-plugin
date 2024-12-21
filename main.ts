@@ -235,6 +235,8 @@ class ExampleView extends ItemView {
 			// Create main details for all definitions
 			const definitionsDetails = definitionContainer.createEl('details');
 			const definitionsSummary = definitionsDetails.createEl('summary');
+			definitionsDetails.setAttribute('open', '');
+
 			await MarkdownRenderer.render(
 				this.app,
 				`#### Definitions`,
@@ -282,6 +284,8 @@ class ExampleView extends ItemView {
 		// Create main details for synonyms
 		const synonymsDetails = container.createEl('details');
 		const synonymsSummary = synonymsDetails.createEl('summary');
+		synonymsDetails.setAttribute('open', '');
+
 		await MarkdownRenderer.render(
 			this.app,
 			`#### Synonyms`,
