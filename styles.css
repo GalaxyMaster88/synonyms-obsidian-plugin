@@ -84,16 +84,14 @@ details > summary > div {
     border-radius: 20px;
 }
 
-/* Add some spacing between definition parts */
 .definition-part {
     margin-bottom: 5px;
 }
 
-/* Add padding to the content inside details */
 details > div {
     padding-left: 20px;
 }
-/* Add more spacing for nested details */
+
 details details {
     margin-left: 10px;
 }

@@ -57,7 +57,7 @@ async function getSynonymData(url: string){
 }
 async function getEtymology(url: string){
 	const doc = await scrapeWebpage(url);
-	const textContents: Record<string, string> = {};
+	const textContents: Map<string, string> = new Map();
 	// Get all elements with class 'engthes'
 	const definitions = doc.querySelectorAll('.ant-col-xs-24 > .word--C9UPa');
 	// Get immediate children of engthes element
@@ -73,9 +73,9 @@ async function getEtymology(url: string){
 				text = child.querySelectorAll(':scope > *')[0].textContent ?? '';
 			}
 		});
-		textContents[word] = text;
+		textContents.set(word, text);
 	});
-	console.log(textContents);
+	return textContents;
 }
 // Remember to rename these classes and interfaces!
 const VIEW_TYPE_EXAMPLE = "example-view";
@@ -149,7 +149,6 @@ export default class MyPlugin extends Plugin {
 		}
 
 		if (leaf) {
-			getEtymology(`https://www.etymonline.com/word/${word}`)
 			const view = leaf.view as ExampleView;
             view.updateContent(word || '');
             workspace.revealLeaf(leaf);
@@ -186,6 +185,7 @@ class ExampleView extends ItemView {
     private header: string = '';
     private synonymsList: string[] = [];
 	private definition: any = '';
+	private etymology: Map<string, string> = new Map();
 
     constructor(leaf: WorkspaceLeaf) {
         super(leaf);
@@ -206,14 +206,17 @@ class ExampleView extends ItemView {
 		this.header = word;
 	
 		// Run both promises concurrently
-		const [synonymsList, definition] = await Promise.all([
+		const [synonymsList, definition, etymology] = await Promise.all([
 			this.getSynonyms(word),
 			this.getWordDefinition(word),
+			getEtymology(`https://www.etymonline.com/word/${word}`)
+
 		]);
 	
 		// Update properties with resolved values
 		this.synonymsList = synonymsList;
 		this.definition = definition;
+		this.etymology = etymology;
 	
 		// Update the view content after both are done
 		this.updateViewContent();
@@ -305,6 +308,31 @@ class ExampleView extends ItemView {
 			});
 		} else {
 			synonymsDetails.createEl("p", { text: "No synonyms found." });
+		}
+
+		const etymologyDetails = container.createEl('details');
+		const etymologySummary = etymologyDetails.createEl('summary');
+		etymologyDetails.setAttribute('open', '');
+
+		await MarkdownRenderer.render(
+			this.app,
+			`#### Etymology`,
+			etymologySummary,
+			'',
+			this
+		);
+		
+		if (this.etymology) {
+			for (const [key, value] of this.etymology.entries()) {
+				const etymologyPartContainer = etymologyDetails.createDiv({
+					cls: 'etymology-part'
+				});
+				etymologyPartContainer.createEl("h6", { text: key });
+				etymologyPartContainer.createEl("p", { text: value });
+			}
+			
+		} else {
+			synonymsDetails.createEl("p", { text: "No etymology found for this word" });
 		}
 	}
 
