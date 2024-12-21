@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "word-information",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Plugin to get information about a word such as it's synonyms, definitions and etymology.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -22,10 +22,5 @@
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
 	},
-	"dependencies": {
-		"synonyms": "^1.0.1",
-		"thesaurus": "^0.0.1",
-		"wordnet": "^2.0.0",
-		"wordnet-db": "^3.1.14"
-	}
+	"dependencies": {}
 }

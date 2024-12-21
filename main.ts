@@ -1,5 +1,4 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, MarkdownRenderer,requestUrl, RequestUrlResponse } from 'obsidian';
-import { text } from 'stream/consumers';
 
 async function scrapeWebpage(url: string) {
     try {
@@ -65,7 +64,6 @@ async function getEtymology(url: string){
 		const children = child.querySelectorAll(':scope > * > * > *');
 		let word = '';
 		let text = '';
-		console.log(children);
 		Array.from(children).forEach(child => {
 			if(child.classList.contains('word__name--TTbAA')){
 				word = child.textContent ?? '';
@@ -78,24 +76,13 @@ async function getEtymology(url: string){
 	return textContents;
 }
 // Remember to rename these classes and interfaces!
-const VIEW_TYPE_EXAMPLE = "example-view";
- 
-interface MyPluginSettings {
-	mySetting: string;
-}
+const sideInformationView = "side-Information-View";
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-
+export default class wordInformation extends Plugin {
 	async onload() {
-		await this.loadSettings();
         this.registerView(
-            VIEW_TYPE_EXAMPLE,
-            (leaf) => new ExampleView(leaf)
+            sideInformationView,
+            (leaf) => new informationSidePopup(leaf)
         );
 
 		this.addCommand({
@@ -112,35 +99,25 @@ export default class MyPlugin extends Plugin {
                 }
             ],
 		});
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
 	}
 
 	onunload() {
-        this.app.workspace.detachLeavesOfType(VIEW_TYPE_EXAMPLE);
+        this.app.workspace.detachLeavesOfType(sideInformationView);
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
 	async activateView(word: string) {
         const { workspace } = this.app;
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
-		console.log('START');
+        let leaf = workspace.getLeavesOfType(sideInformationView)[0];
 
 		if (!leaf) {
 			const rightLeaf = workspace.getRightLeaf(false);
 			if (rightLeaf) { // Ensure rightLeaf is not null
 				await rightLeaf.setViewState({
-					type: VIEW_TYPE_EXAMPLE,
+					type: sideInformationView,
 					active: true,
 				});
 				// Ensure `leaf` is updated after setting the view state
-				leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
+				leaf = workspace.getLeavesOfType(sideInformationView)[0];
 			} else {
 				// Fallback if no right leaf is available
 				console.log('No right leaf; Fallback');
@@ -149,39 +126,14 @@ export default class MyPlugin extends Plugin {
 		}
 
 		if (leaf) {
-			const view = leaf.view as ExampleView;
+			const view = leaf.view as informationSidePopup;
             view.updateContent(word || '');
             workspace.revealLeaf(leaf);
 		}
     }
 }
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
-}
-class ExampleView extends ItemView {
+class informationSidePopup extends ItemView {
     private header: string = '';
     private synonymsList: string[] = [];
 	private definition: any = '';
@@ -192,7 +144,7 @@ class ExampleView extends ItemView {
     }
 
     getViewType(): string {
-        return VIEW_TYPE_EXAMPLE;
+        return sideInformationView;
     }
 
     getDisplayText(): string {
@@ -230,24 +182,23 @@ class ExampleView extends ItemView {
         if (this.header) {
             container.createEl("h2", { text: `${capitalizeFirstLetter(this.header)}` });
         }
-		if (this.definition) {
-			const definitionContainer = container.createDiv({
-				cls: 'definition-container'
-			});
-			
-			// Create main details for all definitions
-			const definitionsDetails = definitionContainer.createEl('details');
-			const definitionsSummary = definitionsDetails.createEl('summary');
-			definitionsDetails.setAttribute('open', '');
+		const definitionContainer = container.createDiv({
+			cls: 'definition-container'
+		});
+		
+		// Create main details for all definitions
+		const definitionsDetails = definitionContainer.createEl('details');
+		const definitionsSummary = definitionsDetails.createEl('summary');
+		definitionsDetails.setAttribute('open', '');
 
-			await MarkdownRenderer.render(
-				this.app,
-				`#### Definitions`,
-				definitionsSummary,
-				'',
-				this
-			);
-			
+		await MarkdownRenderer.render(
+			this.app,
+			`#### Definitions`,
+			definitionsSummary,
+			'',
+			this
+		);
+		if (this.definition) {
 			for (const meaning of this.definition) {
 				const details = definitionsDetails.createEl('details', {
 					cls: 'definition-part'
@@ -322,7 +273,7 @@ class ExampleView extends ItemView {
 			this
 		);
 		
-		if (this.etymology) {
+		if (this.etymology.size > 0) {
 			for (const [key, value] of this.etymology.entries()) {
 				const etymologyPartContainer = etymologyDetails.createDiv({
 					cls: 'etymology-part'
@@ -330,9 +281,8 @@ class ExampleView extends ItemView {
 				etymologyPartContainer.createEl("h6", { text: key });
 				etymologyPartContainer.createEl("p", { text: value });
 			}
-			
 		} else {
-			synonymsDetails.createEl("p", { text: "No etymology found for this word" });
+			etymologyDetails.createEl("p", { text: "No etymology found for this word" });
 		}
 	}
 
