@@ -1,14 +1,30 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, MarkdownRenderer } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, MarkdownRenderer,requestUrl, RequestUrlResponse } from 'obsidian';
+import { text } from 'stream/consumers';
 
-async function fetchWithRetry(url: string): Promise<string> {
-	const response = await fetch(url, {});
-	return await response .text();
-}
 async function scrapeWebpage(url: string) {
-	const html = await fetchWithRetry(url);
-	// console.log(html);
-	const parser = new DOMParser();
-	const doc = parser.parseFromString(html, 'text/html');
+    try {
+        // Use Obsidian's built-in requestUrl instead of fetch
+        const response: RequestUrlResponse = await requestUrl({
+            url: url,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+
+        const html = response.text;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        return doc;
+    } catch (error) {
+        console.error('Error fetching webpage:', error);
+        throw new Error(`Failed to fetch webpage: ${error.message}`);
+    }
+}
+
+
+async function getSynonymData(url: string){
+	const doc = await scrapeWebpage(url);
 	const textContents: string[] = [];
 
 	// Get all elements with class 'engthes'
@@ -38,9 +54,29 @@ async function scrapeWebpage(url: string) {
 
 	// Remove duplicates and filter out empty strings
 	return [...new Set(textContents)].filter(Boolean);
-};
-
-
+}
+async function getEtymology(url: string){
+	const doc = await scrapeWebpage(url);
+	const textContents: Record<string, string> = {};
+	// Get all elements with class 'engthes'
+	const definitions = doc.querySelectorAll('.ant-col-xs-24 > .word--C9UPa');
+	// Get immediate children of engthes element
+	Array.from(definitions).forEach(child => {
+		const children = child.querySelectorAll(':scope > * > * > *');
+		let word = '';
+		let text = '';
+		console.log(children);
+		Array.from(children).forEach(child => {
+			if(child.classList.contains('word__name--TTbAA')){
+				word = child.textContent ?? '';
+			} else if(child.classList.contains('word__defination--2q7ZH')){
+				text = child.querySelectorAll(':scope > *')[0].textContent ?? '';
+			}
+		});
+		textContents[word] = text;
+	});
+	console.log(textContents);
+}
 // Remember to rename these classes and interfaces!
 const VIEW_TYPE_EXAMPLE = "example-view";
  
@@ -93,7 +129,7 @@ export default class MyPlugin extends Plugin {
 	}
 	async activateView(word: string) {
         const { workspace } = this.app;
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE).first();
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
 		console.log('START');
 
 		if (!leaf) {
@@ -104,7 +140,7 @@ export default class MyPlugin extends Plugin {
 					active: true,
 				});
 				// Ensure `leaf` is updated after setting the view state
-				leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE).first();
+				leaf = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE)[0];
 			} else {
 				// Fallback if no right leaf is available
 				console.log('No right leaf; Fallback');
@@ -113,6 +149,7 @@ export default class MyPlugin extends Plugin {
 		}
 
 		if (leaf) {
+			getEtymology(`https://www.etymonline.com/word/${word}`)
 			const view = leaf.view as ExampleView;
             view.updateContent(word || '');
             workspace.revealLeaf(leaf);
@@ -252,7 +289,7 @@ class ExampleView extends ItemView {
     }
 	async getSynonyms(word: string) {
 		let data: string[] = [];
-		data = await scrapeWebpage(`https://www.wordreference.com/synonyms/${word}`);
+		data = await getSynonymData(`https://www.wordreference.com/synonyms/${word}`);
 		if (data.length == 0){
 			const response = await fetch(`https://api.datamuse.com/words?rel_syn=${word}`);
 			data = await response.json();
