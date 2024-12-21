@@ -1,26 +1,35 @@
-h5{
+h4 {
     margin-top: 0px;
     margin-bottom: 0px;
 }
-.definition-container summary {
+
+.definition-container summary,
+details > summary {
     cursor: pointer;
     margin-bottom: 4px;
     list-style: none;
     display: flex;
     align-items: center;
-    /* gap: 5px; */
 }
-.definition-container h5, .definition-list ol {
+
+.definition-container h6, 
+.definition-list ol {
     margin-top: 0px;
     margin-bottom: 0px;
 }
-/* Remove BOTH default disclosure triangles */
+
+/* Remove default disclosure triangles */
 .definition-container summary::-webkit-details-marker,
-.definition-container summary::marker {
+.definition-container summary::marker,
+details > summary::-webkit-details-marker,
+details > summary::marker {
     display: none;
 }
-
-.definition-container summary::before {
+.definition-list ol{
+    padding-left: 0px;
+}
+.definition-container summary::before,
+details > summary::before {
     content: "▶";
     font-size: 0.6em;
     display: inline-block;
@@ -30,7 +39,8 @@ h5{
     margin: 0px 7.5px;
 }
 
-.definition-container details[open] > summary::before {
+.definition-container details[open] > summary::before,
+details[open] > summary::before {
     transform: rotate(90deg);
 }
 
@@ -53,22 +63,37 @@ h5{
     background: transparent;
 }
 
-.definition-container summary > div {
+.definition-container summary > div,
+details > summary > div {
     display: inline-block;
 }
 
-.SynonymList{
-    display:flex;
+.SynonymList {
+    display: flex;
     padding: 0px;
     flex-wrap: wrap;
     gap: 5px; 
     margin-top: 5px;
 }
 
-.SynonymList > *{
+.SynonymList > * {
     margin: 0 2px;
     list-style-type: none;
     padding: 3px 12px;
     background-color: #3c3d3f;
     border-radius: 20px;
+}
+
+/* Add some spacing between definition parts */
+.definition-part {
+    margin-bottom: 10px;
+}
+
+/* Add padding to the content inside details */
+details > div {
+    padding-left: 20px;
+}
+/* Add more spacing for nested details */
+details details {
+    margin-left: 10px;
 }

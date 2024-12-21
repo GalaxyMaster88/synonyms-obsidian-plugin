@@ -228,61 +228,81 @@ class ExampleView extends ItemView {
             container.createEl("h2", { text: `${capitalizeFirstLetter(this.header)}` });
         }
 		if (this.definition) {
-            const definitionContainer = container.createDiv({
-                cls: 'definition-container'
-            });
-            
-            
-            for (const meaning of this.definition) {
-                const details = definitionContainer.createEl('details', {
-                    cls: 'definition-part'
-                });
-                details.setAttribute('open', '');
-                
-                const summary = details.createEl('summary');
-                
-                // Create a separate div for the part of speech that will be rendered as markdown
-                const partOfSpeechDiv = summary.createDiv();
-                await MarkdownRenderer.render(
-                    this.app,
-                    `##### ${capitalizeFirstLetter(meaning.partOfSpeech)}`,
-                    partOfSpeechDiv,
-                    '',
-                    this
-                );
-                
-                // Create a div for the definitions
-                const defsDiv = details.createDiv({
-                    cls: 'definition-list'
-                });
-                
-                const defsMarkdown = meaning.definitions
-                    .map((def: string, index: number) => `${index + 1}. ${def}`)
-                    .join('\n');
-                
-                await MarkdownRenderer.render(
-                    this.app,
-                    defsMarkdown,
-                    defsDiv,
-                    '',
-                    this
-                );
-            }
-        }
-		container.createEl("h5", { text: `Synonyms: ` });
-        if (this.synonymsList.length > 0) {
-			const synonymsList = container.createEl("ul");
-			synonymsList.classList.add("SynonymList"); // Add class to the <ul>
-			
-			this.synonymsList.forEach(synonym => {
-				const listItem = synonymsList.createEl("li", { text: capitalizeFirstLetter(synonym) });
-				// listItem.classList.add("my-li-class"); // Add class to each <li>
+			const definitionContainer = container.createDiv({
+				cls: 'definition-container'
 			});
 			
-        } else {
-            container.createEl("p", { text: "No synonyms found." });
-        }
-    }
+			// Create main details for all definitions
+			const definitionsDetails = definitionContainer.createEl('details');
+			const definitionsSummary = definitionsDetails.createEl('summary');
+			await MarkdownRenderer.render(
+				this.app,
+				`#### Definitions`,
+				definitionsSummary,
+				'',
+				this
+			);
+			
+			for (const meaning of this.definition) {
+				const details = definitionsDetails.createEl('details', {
+					cls: 'definition-part'
+				});
+				
+				const summary = details.createEl('summary');
+				
+				// Create a separate div for the part of speech
+				const partOfSpeechDiv = summary.createDiv();
+				await MarkdownRenderer.render(
+					this.app,
+					`###### ${capitalizeFirstLetter(meaning.partOfSpeech)}`,
+					partOfSpeechDiv,
+					'',
+					this
+				);
+				
+				// Create a div for the definitions
+				const defsDiv = details.createDiv({
+					cls: 'definition-list'
+				});
+				
+				const defsMarkdown = meaning.definitions
+					.map((def: string, index: number) => `${index + 1}. ${def}`)
+					.join('\n');
+				
+				await MarkdownRenderer.render(
+					this.app,
+					defsMarkdown,
+					defsDiv,
+					'',
+					this
+				);
+			}
+		}
+		
+		// Create main details for synonyms
+		const synonymsDetails = container.createEl('details');
+		const synonymsSummary = synonymsDetails.createEl('summary');
+		await MarkdownRenderer.render(
+			this.app,
+			`#### Synonyms`,
+			synonymsSummary,
+			'',
+			this
+		);
+		
+		if (this.synonymsList.length > 0) {
+			const synonymsList = synonymsDetails.createEl("ul");
+			synonymsList.classList.add("SynonymList");
+			
+			this.synonymsList.forEach(synonym => {
+				const listItem = synonymsList.createEl("li", { 
+					text: capitalizeFirstLetter(synonym) 
+				});
+			});
+		} else {
+			synonymsDetails.createEl("p", { text: "No synonyms found." });
+		}
+	}
 
     async onClose() {
         // Cleanup, if needed
